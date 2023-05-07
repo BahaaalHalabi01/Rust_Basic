@@ -1,12 +1,104 @@
 #![allow(unused)]
-
 use rand::Rng;
 use std::cmp::Ordering;
+use std::collections::HashMap;
 use std::fs::File;
 use std::io;
 use std::io::{BufRead, BufReader, ErrorKind, Write};
+use std::ops::Add;
+
+fn main() {}
+
+fn structs() {
+    //this lets you print instantly
+    #[derive(Debug)]
+    struct Customer {
+        name: String,
+        address: String,
+        balance: f32,
+    }
+    let mut bob = Customer {
+        name: String::from("Bob Smith"),
+        address: String::from("Downtown Dubai"),
+        balance: 250.50,
+    };
+
+    bob.address = String::from("Jumairah Street");
+    println!("Details: {:?}", bob);
+
+    const PI: f32 = 3.141592;
+    trait Shape {
+        fn new(length: f32, width: f32) -> Self;
+        fn area(&self) -> f32;
+    }
+    struct Rectangle {
+        length: f32,
+        width: f32,
+    };
+    struct Circle {
+        length: f32,
+        width: f32,
+    };
+    impl Shape for Rectangle {
+        fn new(length: f32, width: f32) -> Rectangle {
+            Rectangle { length, width }
+        }
+        fn area(&self) -> f32 {
+            &self.length * self.width
+        }
+    }
+    impl Shape for Circle {
+        fn new(length: f32, width: f32) -> Circle {
+            Circle { length, width }
+        }
+        fn area(&self) -> f32 {
+            (&self.length / 2.0) * PI
+        }
+    }
+
+    let rec: Rectangle = Shape::new(10.0, 10.0);
+    let circ: Circle = Shape::new(10.0, 10.0);
+    println!("Rectangle Area: {}", rec.area());
+    println!("Circle Area: {}", circ.area())
+}
+
+fn hashmap() {
+    let mut heroes: HashMap<&str, &str> = HashMap::new();
+    heroes.insert("Superman", "Clark Kent");
+    heroes.insert("Batman", "Bruce Wayne");
+    heroes.insert("The Flash", "Barry Allen");
+
+    for (k, v) in heroes.iter() {
+        println!(" key: {}, value: {}", k, v)
+    }
+    if heroes.contains_key(&"Batman") {
+        let the_batman = heroes.get(&"Batman");
+        match the_batman {
+            Some(x) => println!("Batman is a hero"),
+            None => println!("Batman is not here today"),
+        }
+    }
+
+    println!("Length: {}", heroes.len())
+}
 
 fn functions() {
+    fn print_str(x: String) {
+        println!("A String {}", x);
+    }
+
+    fn print_return_str(x: String) -> String {
+        println!("A String {}", x);
+        x
+    }
+    fn change_string(x: &mut String) {
+        x.push_str(" modified string");
+        println!("New {}", x)
+    }
+    let mut str1 = String::from("Bahaa");
+    let str2 = str1.clone();
+    let str3 = print_return_str(str2);
+    println!("str3 = {}", str3);
     fn get_2(x: i32) -> (i32, i32) {
         return (x + 1, x + 2);
     }
@@ -31,9 +123,12 @@ fn functions() {
     let num_list: Vec<i32> = vec![1, 2, 3, 4, 5, 5, 6];
     println!("Sum of list {:?}: {}", num_list, sum_list(&num_list));
 
-}
+    fn get_sum_gen<T: Add<Output = T>>(x: T, y: T) -> T {
+        return x + y;
+    }
 
-fn main() {
+    println!("{} + {} = {}", 5, 4, get_sum_gen(5, 4));
+    println!("{} + {} = {}", 3.2, 4.5, get_sum_gen(3.2, 4.5));
 }
 
 fn vectors() {
