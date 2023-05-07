@@ -1,13 +1,217 @@
 #![allow(unused)]
+mod restaurant;
+use core::panic;
 use rand::Rng;
+use std::cell::RefCell;
 use std::cmp::Ordering;
 use std::collections::HashMap;
 use std::fs::File;
 use std::io;
 use std::io::{BufRead, BufReader, ErrorKind, Write};
 use std::ops::Add;
+use std::rc::Rc;
+use std::sync::{Arc, Mutex};
+use std::thread;
+use std::time::Duration;
 
-fn main() {}
+fn main(){}
+
+fn threads() {
+    // common problems of parallel programming
+    // involve :
+    // 1. Thread are accessing data in the wrong order
+    // 2. Threads are blocked form executing because of confusion
+    // over requirements to proced with execution / deadlock
+    let thread1 = thread::spawn(|| {
+        for i in 1..25 {
+            println!("Spawned thread : {}", i);
+            thread::sleep(Duration::from_millis(1));
+        }
+    });
+    for i in 1..20 {
+        println!(" Main Thread: {}", i);
+        thread::sleep(Duration::from_millis(1));
+    }
+    //if you do not join, first thread will not finish
+    thread1.join().unwrap();
+
+    pub struct Bank {
+        balance: f32,
+    };
+    //Below is wrong way to do things
+    //the thread closure might outlive the current function
+    // which borrows jpmorgan which is owned by main
+    // fn withdraw(the_bank: &mut Bank, amt: f32) {
+    //     the_bank.balance -= amt;
+    // }
+    // let mut jpmogran = Bank { balance: 100.0 };
+    // withdraw(&mut jpmogran, 50.0);
+    // println!("My balance :{}", jpmogran.balance);
+    // fn customer(the_bank: &mut Bank) {
+    //     withdraw(the_bank, 5.00)
+    // }
+    // thread::spawn(||{
+    //     customer(&mut jpmogran)
+    // }).join().unwrap()
+    // how to fix the above?
+    fn withdraw(bank: &Arc<Mutex<Bank>>, amt: f32) {
+        let mut bank_ref = bank.lock().unwrap();
+        if bank_ref.balance < amt {
+            println!(
+                "Current Balance: {} does not allow you to withdraw the {} amount",
+                bank_ref.balance, amt
+            )
+        } else {
+            bank_ref.balance -= amt;
+            println!(
+                "You successfully withdrew {}, you have {} left in your balance",
+                amt, bank_ref.balance
+            )
+        }
+    }
+    fn customer(bank: Arc<Mutex<Bank>>) {
+        // is the below possibile 
+        // take input on every thread
+        // let mut bank_ref = bank.lock().unwrap();
+        // println!("You currently have {} in your balance", bank_ref.balance);
+        // println!("Enter the amount to withdraw in numbers");
+        // io::stdin()
+        //     .read_line(&mut amt)
+        //     .expect("You did not enter a correct amount");
+        withdraw(&bank, 5.00)
+    }
+    let jpmogran: Arc<Mutex<Bank>> = Arc::new(Mutex::new(Bank { balance:20.00 }));
+    let handles = (0..10).map(|_| {
+        let bank_ref = jpmogran.clone();
+        thread::spawn(|| customer(bank_ref))
+    });
+
+    for handle in handles {
+        handle.join().unwrap()
+    }
+    println!("Total {}", jpmogran.lock().unwrap().balance)
+}
+
+fn trees() {
+    //Box a smart pointer for large amount of data in heap
+    //stores data on a heap rather than a stack
+    //stack stores value in last in first out format
+    //data on stack must have a defined fixed size
+    //with a heap you request an amount of memory with the os allocates for you
+    let b_int1 = Box::new(10);
+    println!("bint1 {}", b_int1);
+
+    #[derive(Debug)]
+    struct TreeNode<T> {
+        //this is a usual tree
+        //left:TreeNode<T>
+        //right:TreeNode<T>
+        //rust does not like null values
+        //leafs of a tree have no right/left
+        //this fixes it
+        pub left: Option<Box<TreeNode<T>>>,
+        pub right: Option<Box<TreeNode<T>>>,
+        pub key: T,
+    }
+    impl<T> TreeNode<T> {
+        pub fn new(key: T) -> Self {
+            TreeNode {
+                left: None,
+                right: None,
+                key,
+            }
+        }
+        pub fn left(mut self, node: TreeNode<T>) -> Self {
+            self.left = Some(Box::new(node));
+            self
+        }
+
+        pub fn right(mut self, node: TreeNode<T>) -> Self {
+            self.right = Some(Box::new(node));
+            self
+        }
+    }
+    let node1 = TreeNode::new(1)
+        .left(TreeNode::new(2))
+        .right(TreeNode::new(5));
+    println!("Tree Printing : {:?}", node1)
+}
+
+fn closures() {
+    // a closure
+    // let var_name = |parameters| -> return_type {body}
+    let can_vote = |age: i32| age >= 18;
+    println!("Can this guy vote?: {}", can_vote(78));
+    let mut samp = 5;
+    let print_var = || println!("samp = {}", samp);
+    print_var();
+    samp = 10;
+    //closure is an easy way to change value in a function
+    //harder to do this in a normal function
+    //if you declare closure as mut, you can change values inside of it
+    let mut change_var = || samp *= 2;
+    change_var();
+    println!("new samp = {}", samp);
+    //passing a closure to a function
+    fn use_func<T>(a: i32, b: i32, func: T) -> i32
+    where
+        T: Fn(i32, i32) -> i32,
+    {
+        func(a, b)
+    };
+    let sum = |a: i32, b: i32| a + b;
+    let prod = |a: i32, b: i32| a * b;
+    println!("using a use function to sum : {}", use_func(5, 4, sum));
+    println!("using a use function to mult: {}", use_func(5, 4, prod));
+}
+
+fn iters() {
+    let mut arr_it = [1, 2, 3, 4];
+    // you can't change the value in the below examples
+    for val in arr_it.iter() {
+        println!("{}", val)
+    }
+    let mut iter = arr_it.iter();
+    println!("1st: {:?}", iter.next());
+    //can consume but it goes away
+    for val in arr_it.into_iter() {}
+}
+
+fn files_errors() {
+    //Result has 2 variants Ok and Err
+    // Ok(T),
+    // Err(E),
+    // }
+    // Where T represents the data typeof the value
+    // and E the type of error
+    let path = "lines.txt";
+    let output = File::create(path);
+    let mut output = match output {
+        Ok(file) => file,
+        Err(error) => panic!("Problem creating a file: {:?}", error),
+    };
+    write!(output, "Just Some random stuff\n next line stuff")
+        .expect("Failed to write to the file");
+
+    let input = File::open(path).unwrap();
+    let buffered = BufReader::new(input);
+
+    for line in buffered.lines() {
+        println!("{}", line.unwrap());
+    }
+
+    let output1 = File::create("random.txt");
+    let output1 = match output1 {
+        Ok(file) => file,
+        Err(error) => match error.kind() {
+            ErrorKind::NotFound => match File::create("random.txt") {
+                Ok(fc) => fc,
+                Err(err) => panic!("Could not create a file: {:?}", err),
+            },
+            _err => panic!("Problem occured: {:?}", _err),
+        },
+    };
+}
 
 fn structs() {
     //this lets you print instantly
